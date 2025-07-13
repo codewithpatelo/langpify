@@ -123,6 +123,8 @@ poetry install
 
 ```bash
 poetry run pytest
+python3 -m tests.test
+
 ```
 
 ### Verificar estilo de código
