@@ -87,17 +87,31 @@ poetry add langpify
    cd langpify
    ```
 
-2. **Instalar dependencias:**
+2. **Instalar Poetry (si no lo tienes):**
    ```bash
-   make install
-   # o manualmente:
+   # Linux/macOS/WSL
+   curl -sSL https://install.python-poetry.org | python3 -
+   
+   # Agregar al PATH y recargar terminal
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+   
+   # Verificar instalación
+   poetry --version
+   ```
+
+3. **Configurar entorno de desarrollo:**
+   ```bash
+   make dev-setup
+   # o manualmente (usa tu versión de Python disponible):
+   poetry env use python3.10  # o python3.11, python3.13, etc.
    poetry install
    ```
 
-3. **Ejecutar test completo (requiere OpenAI API key):**
+4. **Ejecutar tests (requiere OpenAI API key):**
    ```bash
    # Configurar API key
-   export OPENAI_API_KEY="tu-api-key-aqui"
+   export OPENAI_API_KEY="tu-api-key-aqui" # o crear archivo .env
    
    # Ejecutar test
    make test
@@ -109,8 +123,8 @@ poetry add langpify
 
 ```bash
 make help          # Ver todos los comandos disponibles
-make install       # Instalar dependencias
-make test          # Test completo con OpenAI
+make dev-setup     # Configurar entorno de desarrollo
+make test          # Ejecutar tests con OpenAI
 make lint          # Ejecutar linting
 make format        # Formatear código
 make build         # Construir paquete

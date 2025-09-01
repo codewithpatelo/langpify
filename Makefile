@@ -1,7 +1,7 @@
 .PHONY: help install test test-local lint format build clean docs publish-test publish
 
-# Variables
-PYTHON_VERSION = 3.11
+# Variables - Detectar Python automáticamente
+PYTHON_CMD := $(shell command -v python3.11 2> /dev/null || command -v python3.10 2> /dev/null || command -v python3.9 2> /dev/null || command -v python3 2> /dev/null)
 PACKAGE_NAME = langpify
 
 help: ## Mostrar ayuda de comandos disponibles
@@ -11,7 +11,8 @@ help: ## Mostrar ayuda de comandos disponibles
 
 install: ## Instalar dependencias del proyecto
 	@echo "🔧 Instalando dependencias..."
-	poetry env use python$(PYTHON_VERSION)
+	@echo "Usando Python: $(PYTHON_CMD)"
+	poetry env use $(PYTHON_CMD)
 	poetry install
 	@echo "✅ Dependencias instaladas"
 
@@ -66,6 +67,7 @@ publish: build ## Publicar en PyPI
 
 dev-setup: install ## Configuración completa para desarrollo
 	@echo "⚙️  Configurando entorno de desarrollo..."
+	@echo "Usando Python: $(PYTHON_CMD)"
 	poetry run pre-commit install || echo "pre-commit no disponible"
 	@echo "✅ Entorno de desarrollo configurado"
 
