@@ -57,14 +57,25 @@ pyenv local 3.11.6
 
 ### API Keys (Opcional)
 
-Para usar funcionalidades completas con LLMs:
+Para usar funcionalidades completas con LLMs, necesitas al menos una API key:
 
+#### 🆓 Groq (Recomendado - Gratuito)
 ```bash
-# OpenAI (para tests completos)
+# 1. Ve a https://console.groq.com/
+# 2. Crea cuenta gratuita (sin tarjeta de crédito)
+# 3. Genera API key
+export GROQ_API_KEY="tu-groq-api-key"
+
+# O crear archivo .env
+echo "GROQ_API_KEY=tu-groq-api-key" > .env
+```
+
+#### 💳 OpenAI (Alternativa - Requiere pago)
+```bash
 export OPENAI_API_KEY="tu-openai-api-key"
 
-# O crear archivo .env en la raíz del proyecto
-echo "OPENAI_API_KEY=tu-openai-api-key" > .env
+# O agregar al archivo .env
+echo "OPENAI_API_KEY=tu-openai-api-key" >> .env
 ```
 
 ## 🚀 Instalación Rápida
@@ -108,10 +119,13 @@ poetry add langpify
    poetry install
    ```
 
-4. **Ejecutar tests (requiere OpenAI API key):**
+4. **Ejecutar tests (requiere API key):**
    ```bash
-   # Configurar API key
-   export OPENAI_API_KEY="tu-api-key-aqui" # o crear archivo .env
+   # Opción A: Groq (gratuito, recomendado)
+   export GROQ_API_KEY="tu-groq-api-key"
+   
+   # Opción B: OpenAI (requiere pago)
+   export OPENAI_API_KEY="tu-openai-api-key"
    
    # Ejecutar test
    make test

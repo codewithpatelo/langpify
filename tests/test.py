@@ -15,18 +15,58 @@ dotenv.load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.en
 from langpify import LangpifyBaseAgent, LangpifyRole, LangpifyGoal
 from langpify.entities.entities import LangpifyLanguage, LangpifyStatus
 
-# Import OpenAI
-from openai import OpenAI
+# Import LLM clients
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
+try:
+    from langchain_groq import ChatGroq
+except ImportError:
+    ChatGroq = None
 
 # Main function
 def main():
-    # Check for OpenAI API key
-    if not os.environ.get("OPENAI_API_KEY"):
-        print("Warning: OPENAI_API_KEY environment variable not set. Please set it before running this script.")
-        return
+    # Check for API keys and determine which provider to use
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    groq_key = os.environ.get("GROQ_API_KEY")
     
-    # Create OpenAI client
-    openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    if groq_key and ChatGroq:
+        try:
+            print("🚀 Usando Groq (gratuito)")
+            client = ChatGroq(
+                api_key=groq_key,
+                model="llama-3.1-8b-instant",
+                temperature=0.7
+            )
+            provider = "groq"
+            model_name = "llama-3.1-8b-instant"
+        except Exception as e:
+            print(f"⚠️  Error inicializando Groq: {e}")
+            print("🔄 Intentando con OpenAI...")
+            if openai_key and OpenAI:
+                client = OpenAI(api_key=openai_key)
+                provider = "openai"
+                model_name = "gpt-3.5-turbo"
+            else:
+                print("❌ Error: No se pudo inicializar ningún cliente LLM")
+                return
+    elif openai_key and OpenAI:
+        print("🚀 Usando OpenAI")
+        client = OpenAI(api_key=openai_key)
+        provider = "openai"
+        model_name = "gpt-3.5-turbo"
+    else:
+        print("❌ Error: Se requiere al menos una API key:")
+        print("   - GROQ_API_KEY (gratuito, recomendado)")
+        print("   - OPENAI_API_KEY")
+        print("\n📝 Para obtener Groq API key gratuita:")
+        print("   1. Ve a https://console.groq.com/")
+        print("   2. Crea una cuenta gratuita")
+        print("   3. Genera una API key")
+        print("   4. export GROQ_API_KEY='tu-groq-api-key'")
+        return
     
     # Create Clara agent
     clara = LangpifyBaseAgent(
@@ -52,17 +92,17 @@ def main():
         ]
     )
     
-    # Set up OpenAI for both agents
+    # Set up LLM for both agents
     clara.language = LangpifyLanguage(
-        model_provider="openai",
-        model_name="gpt-3.5-turbo",
-        model=openai_client
+        model_provider=provider,
+        model_name=model_name,
+        model=client
     )
     
     roberto.language = LangpifyLanguage(
-        model_provider="openai",
-        model_name="gpt-3.5-turbo",
-        model=openai_client
+        model_provider=provider,
+        model_name=model_name,
+        model=client
     )
     
     # Define Roberto's event handler to respond to Clara's messages
@@ -70,7 +110,7 @@ def main():
         if event["type"] == "message_sent" and event["source"] == clara.aid:
             print(f"\nClara: {event['data']['content']}")
             
-            # Generate response using OpenAI
+            # Generate response using LLM
             response = generate_response(roberto, event['data']['content'])
             
             print(f"\nRoberto: {response}")
@@ -82,26 +122,34 @@ def main():
                 "timestamp": time.time()
             })
     
-    # Function to generate responses using OpenAI
+    # Function to generate responses using LLM (OpenAI or Groq)
     def generate_response(agent, prompt):
         try:
             # Prepare system message with agent role
             system_message = f"You are {agent.role['name']}. {agent.role['content']}"
             
-            # Call OpenAI API
-            response = agent.language["model"].chat.completions.create(
-                model=agent.language["model_name"],
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": prompt}
+            if agent.language["model_provider"] == "groq":
+                # Use LangChain ChatGroq
+                from langchain_core.messages import SystemMessage, HumanMessage
+                messages = [
+                    SystemMessage(content=system_message),
+                    HumanMessage(content=prompt)
                 ]
-            )
-            
-            # Extract and return response text
-            return response.choices[0].message.content
+                response = agent.language["model"].invoke(messages)
+                return response.content
+            else:
+                # Use OpenAI client
+                response = agent.language["model"].chat.completions.create(
+                    model=agent.language["model_name"],
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                return response.choices[0].message.content
             
         except Exception as e:
-            error_message = f"Error communicating with OpenAI: {str(e)}"
+            error_message = f"Error communicating with {agent.language['model_provider']}: {str(e)}"
             return error_message
     
     # Subscribe Roberto to Clara's events
