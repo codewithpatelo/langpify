@@ -94,14 +94,7 @@ poetry add langpify
    poetry install
    ```
 
-3. **Ejecutar test simple (sin API keys):**
-   ```bash
-   make test-local
-   # o manualmente:
-   poetry run python test_local.py
-   ```
-
-4. **Ejecutar test completo (requiere OpenAI API key):**
+3. **Ejecutar test completo (requiere OpenAI API key):**
    ```bash
    # Configurar API key
    export OPENAI_API_KEY="tu-api-key-aqui"
