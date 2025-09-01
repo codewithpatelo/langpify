@@ -11,12 +11,9 @@ import dotenv
 # Load environment variables from .env file
 dotenv.load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
-
-# Agrega la carpeta raíz del proyecto al path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 # Import the necessary modules
-from src.entities.base_agent import LangpifyBaseAgent
-from src.entities.entities import LangpifyRole, LangpifyGoal, LangpifyLanguage, LangpifyStatus
+from langpify import LangpifyBaseAgent, LangpifyRole, LangpifyGoal
+from langpify.entities.entities import LangpifyLanguage, LangpifyStatus
 
 # Import OpenAI
 from openai import OpenAI

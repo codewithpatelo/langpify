@@ -1,4 +1,131 @@
-# Langpify
+# Langpify 🤖
+
+**SDK para programación basada en agentes neuro-simbólicos**
+
+Langpify es un meta-framework que permite el desarrollo de agentes inteligentes adaptativos y reutilizables, integrando protocolos clásicos (FIPA) con tecnologías modernas (LLMs, MCP, A2A, ACP).
+
+[![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://pypi.org/project/langpify/)
+[![PyPI Version](https://img.shields.io/pypi/v/langpify.svg)](https://pypi.org/project/langpify/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/codewithpatelo/langpify/blob/main/LICENSE)
+
+## 📋 Prerequisitos
+
+### Requisitos del Sistema
+
+- **Python 3.9 o superior** (recomendado Python 3.11+)
+- **Poetry** (para gestión de dependencias)
+- **Make** (para usar comandos simplificados)
+- **Git** (para clonar el repositorio)
+
+### Verificar Prerequisitos
+
+```bash
+# Verificar versión de Python
+python3 --version
+# Debe mostrar Python 3.9.x o superior
+
+# Verificar Poetry
+poetry --version
+# Si no está instalado, ver instrucciones abajo
+
+# Verificar Make
+make --version
+# Usualmente viene preinstalado en Linux/macOS
+
+# Verificar Git
+git --version
+```
+
+### Instalar Poetry (si no lo tienes)
+
+```bash
+# Linux/macOS/WSL
+curl -sSL https://install.python-poetry.org | python3 -
+
+# Agregar al PATH (reiniciar terminal después)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Configurar Python (si usas pyenv)
+
+```bash
+# Instalar Python 3.11 con pyenv (opcional)
+pyenv install 3.11.6
+pyenv local 3.11.6
+```
+
+### API Keys (Opcional)
+
+Para usar funcionalidades completas con LLMs:
+
+```bash
+# OpenAI (para tests completos)
+export OPENAI_API_KEY="tu-openai-api-key"
+
+# O crear archivo .env en la raíz del proyecto
+echo "OPENAI_API_KEY=tu-openai-api-key" > .env
+```
+
+## 🚀 Instalación Rápida
+
+```bash
+# Usando pip
+pip install langpify
+
+# Usando poetry
+poetry add langpify
+```
+
+## 🏃‍♂️ Inicio Rápido
+
+### Desarrollo Local
+
+1. **Clonar el repositorio:**
+   ```bash
+   git clone https://github.com/codewithpatelo/langpify.git
+   cd langpify
+   ```
+
+2. **Instalar dependencias:**
+   ```bash
+   make install
+   # o manualmente:
+   poetry install
+   ```
+
+3. **Ejecutar test simple (sin API keys):**
+   ```bash
+   make test-local
+   # o manualmente:
+   poetry run python test_local.py
+   ```
+
+4. **Ejecutar test completo (requiere OpenAI API key):**
+   ```bash
+   # Configurar API key
+   export OPENAI_API_KEY="tu-api-key-aqui"
+   
+   # Ejecutar test
+   make test
+   # o manualmente:
+   poetry run python tests/test.py
+   ```
+
+### Comandos Disponibles (Makefile)
+
+```bash
+make help          # Ver todos los comandos disponibles
+make install       # Instalar dependencias
+make test          # Test completo con OpenAI
+make lint          # Ejecutar linting
+make format        # Formatear código
+make build         # Construir paquete
+make clean         # Limpiar archivos temporales
+make docs          # Generar documentación
+```
+
+## 📖 Conceptos Fundamentales
 
 ## Entidades Clave
 - **Agentes**: Son entidades autónomas que procesan mensajes, toman decisiones y pueden interactuar entre sí y con herramientas. Cada agente sigue abstracciones de alto nivel inspiradas en FIPA y puede ser registrado en protocolos modernos como MCP, ACP y A2A.
@@ -75,20 +202,6 @@ El desarrollo agencial moderno enfrenta una fragmentación acelerada: múltiples
 Langpify no es solo un framework, sino una plataforma conceptual y técnica que promueve la interoperabilidad, la adaptabilidad y la sostenibilidad en el desarrollo de agentes inteligentes. Permite construir sistemas robustos y evolutivos, preparados para integrar nuevas tecnologías y protocolos sin sacrificar claridad ni control.
 
 
-
-
-## Instalación
-
-```bash
-pip install langpify
-```
-
-O usando Poetry:
-
-```bash
-poetry add langpify
-```
-
 ## Uso
 
 ```python
@@ -97,43 +210,6 @@ from langpify import example
 # Ejemplo básico
 result = example.hello_world()
 print(result)  # Imprime: "Hello, World!"
-```
-
-## Desarrollo
-
-### Configuración del entorno de desarrollo
-
-1. Clona el repositorio:
-```bash
-git clone https://github.com/yourusername/langpify.git
-cd langpify
-```
-
-2. Instala Poetry (si aún no lo tienes):
-```bash
-curl -sSL https://install.python-poetry.org | python3 -
-```
-
-3. Instala las dependencias:
-```bash
-poetry install
-```
-
-### Ejecutar tests
-
-```bash
-poetry run pytest
-python3 -m tests.test
-
-```
-
-### Verificar estilo de código
-
-```bash
-poetry run black .
-poetry run isort .
-poetry run flake8 .
-poetry run mypy .
 ```
 
 ## Licencia

@@ -2,10 +2,41 @@ import time
 import uuid
 from abc import abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Set
+from dataclasses import dataclass
 
 from langgraph.checkpoint.memory import MemorySaver
-from python_a2a import A2AServer, AgentCard, TaskState, TaskStatus
-from src.entities.entities import (
+
+# Implementación temporal de AgentCard hasta resolver python-a2a
+@dataclass
+class AgentCard:
+    """Tarjeta de agente compatible con A2A (implementación temporal)."""
+    name: str
+    description: str
+    version: str
+    url: str
+    capabilities: List[str]
+    skills: List[str]
+
+# Intentar importar desde python-a2a, usar implementación temporal si falla
+try:
+    from python_a2a import A2AServer, TaskState, TaskStatus
+    # Si AgentCard no está disponible, usar nuestra implementación
+    try:
+        from python_a2a import AgentCard as A2AAgentCard
+        AgentCard = A2AAgentCard
+    except ImportError:
+        pass  # Usar nuestra implementación temporal
+except ImportError:
+    # Si python-a2a no está disponible, crear stubs
+    class A2AServer:
+        pass
+    
+    class TaskState:
+        pass
+    
+    class TaskStatus:
+        pass
+from .entities import (
     LangpifyAgentState,
     LangpifyEvent,
     LangpifyGoal,

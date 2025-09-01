@@ -8,8 +8,8 @@ sys.path.insert(0, os.path.abspath("../../src"))
 
 # -- Project information -----------------------------------------------------
 project = "Langpify"
-copyright = "2025, Your Name"
-author = "Your Name"
+copyright = "2025, Patricio Gerpe"
+author = "Patricio Gerpe"
 
 # The full version, including alpha/beta/rc tags
 from langpify import __version__
