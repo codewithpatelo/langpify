@@ -2,10 +2,41 @@ import time
 import uuid
 from abc import abstractmethod
 from typing import Any, Callable, Dict, List, Optional, Set
+from dataclasses import dataclass
 
 from langgraph.checkpoint.memory import MemorySaver
-from python_a2a import A2AServer, AgentCard, TaskState, TaskStatus
-from langpify.entities.entities import (
+
+# Implementación temporal de AgentCard hasta resolver python-a2a
+@dataclass
+class AgentCard:
+    """Tarjeta de agente compatible con A2A (implementación temporal)."""
+    name: str
+    description: str
+    version: str
+    url: str
+    capabilities: List[str]
+    skills: List[str]
+
+# Intentar importar desde python-a2a, usar implementación temporal si falla
+try:
+    from python_a2a import A2AServer, TaskState, TaskStatus
+    # Si AgentCard no está disponible, usar nuestra implementación
+    try:
+        from python_a2a import AgentCard as A2AAgentCard
+        AgentCard = A2AAgentCard
+    except ImportError:
+        pass  # Usar nuestra implementación temporal
+except ImportError:
+    # Si python-a2a no está disponible, crear stubs
+    class A2AServer:
+        pass
+    
+    class TaskState:
+        pass
+    
+    class TaskStatus:
+        pass
+from .entities import (
     LangpifyAgentState,
     LangpifyEvent,
     LangpifyGoal,
@@ -54,12 +85,12 @@ class LangpifyBaseAgent():
         aid: Optional[str] = None,
         role: Optional[LangpifyRole] = None,
         goals: Optional[List[LangpifyGoal]] = None,
-        settings: Optional[_AISettings] = None,
+      #  settings: Optional[_AISettings] = None,
     ):
 
         ## CONFIGURACIÓN DEL AGENTE ##
 
-        self.settings = settings or GlobalAISettings
+       # self.settings = settings or GlobalAISettings
 
         ## Atributos del Agente ##
         ## IDENTIDAD DEL AGENTE ##
@@ -93,15 +124,15 @@ class LangpifyBaseAgent():
 
         # 1. Percepción
         # Inicializar el estado según el framework configurado
-        if self.settings.framework.value == "langgraph":
-            try:
-                from langgraph.graph import StateGraph
+       # if self.settings.framework.value == "langgraph":
+        #    try:
+        #        from langgraph.graph import StateGraph
 
-                self.state = StateGraph
-            except ImportError:
-                self.state = LangpifyAgentState
-        else:
-            self.state = LangpifyAgentState
+         #       self.state = StateGraph
+            #  except ImportError:
+            #    self.state = LangpifyAgentState
+       # else:
+         #   self.state = LangpifyAgentState
 
         # Entendemos a un estado como un conjunto de caracteristicas internas dado un momento dado.
         # Por su parte, un evento es toda variedad de estados (sea internos o externos).
@@ -123,12 +154,12 @@ class LangpifyBaseAgent():
         # Se prevee usar el modelo "TransportLayer", inspirado en FIPA Y MCP para comunicación protocolar (WS, JSONRPC, colas, etc...)
 
         # 2. Atención y Memoria
-        if self.settings.framework.value == "langgraph":
+        #if self.settings.framework.value == "langgraph":
             # Si es langgraph, usamos MemorySaver de langgraph
-            self.memory = MemorySaver()
-        else:
+      #      self.memory = MemorySaver()
+       # else:
             # Si no es langgraph,
-            self.memory = None  # Se deberá implementar en las clases concretas
+       #     self.memory = None  # Se deberá implementar en las clases concretas
 
         # 3. Motivación
         self.goals = goals or []  # Metas (Variable inyectada en prompt dinamico)
