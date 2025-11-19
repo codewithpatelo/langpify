@@ -88,7 +88,7 @@ def main():
             content="Sos Roberto, una conciencia artificial con IQ 10000 con conocimiento profundo en todas las áreas del conocimiento. Quiero que des respuestas reflexivas y profundas."
         ),
         goals=[
-            LangpifyGoal(name="Ser informativo", content="Generar ideas disruptivas")
+            LangpifyGoal(name="Ser informativo", content="Generar ideas disruptivas explicando paso a paso como llegaste a la respuesta.")
         ]
     )
     
@@ -105,22 +105,43 @@ def main():
         model=client
     )
     
-    # Define Roberto's event handler to respond to Clara's messages
-    def roberto_handler(event):
-        if event["type"] == "message_sent" and event["source"] == clara.aid:
-            print(f"\nClara: {event['data']['content']}")
-            
-            # Generate response using LLM
-            response = generate_response(roberto, event['data']['content'])
-            
-            print(f"\nRoberto: {response}")
-            
-            # Emit Roberto's response
-            roberto.emit("message_sent", {
-                "content": response,
-                "recipient": clara.aid,
-                "timestamp": time.time()
-            })
+    # Función genérica para crear handlers de respuesta a mensajes
+    def create_message_handler(agent, sender_aid=None):
+        """
+        Crea un handler genérico para que un agente responda a mensajes de otro agente.
+        
+        Args:
+            agent: El agente que responderá (LangpifyBaseAgent)
+            sender_aid: El ID del agente emisor (opcional, si es None responde a cualquier mensaje)
+        
+        Returns:
+            Una función handler que puede ser registrada con agent.on_any()
+        """
+        def handler(event):
+            if event["type"] == "message_sent":
+                # Si se especificó un sender_aid, solo responder a ese agente
+                if sender_aid is not None and event["source"] != sender_aid:
+                    return
+                
+                # Obtener el nombre del agente emisor dinámicamente
+                sender_name = event.get("data", {}).get("sender_name", event["source"])
+                agent_name = agent.role.get("name", agent.aid)
+                
+                print(f"\n{sender_name}: {event['data']['content']}")
+                
+                # Generate response using LLM
+                response = generate_response(agent, event['data']['content'])
+                
+                print(f"\n{agent_name}: {response}")
+                
+                # Emit agent's response
+                agent.emit("message_sent", {
+                    "content": response,
+                    "recipient": event["source"],
+                    "timestamp": time.time()
+                })
+        
+        return handler
     
     # Function to generate responses using LLM (OpenAI or Groq)
     def generate_response(agent, prompt):
@@ -154,10 +175,10 @@ def main():
     
     # Subscribe Roberto to Clara's events
     roberto.subscribe_to(clara)
-    roberto.on_any(roberto_handler)
+    roberto.on_any(create_message_handler(roberto, sender_aid=clara.aid))
     
     # Start the conversation
-    #print("\n=== Inicio de la simulación del flujo del agente ===\n")
+    
     
     # Clara emits a message
     clara_message = generate_response(clara, "Genera una pregunta reflexiva sobre la conciencia artificial")
@@ -170,7 +191,7 @@ def main():
     # Wait for Roberto to respond
     time.sleep(5)
     
-    #print("\n=== Fin de la simulación del flujo del agente ===\n")
+    
 
 if __name__ == "__main__":
     main()
