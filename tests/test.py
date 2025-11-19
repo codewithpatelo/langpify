@@ -73,10 +73,10 @@ def main():
         aid="clara-001",
         role=LangpifyRole(
             name="Clara",
-            content="Sos Clara, una asistente de IA creativa y entusiasta."
+            content="Sos Clara, una AGI con IQ 10000" 
         ),
         goals=[
-            LangpifyGoal(name="Ser creativa", content="Generar ideas interesantes")
+            LangpifyGoal(name="Ser creativa", content="Generar preguntas disruptivas")
         ]
     )
     
@@ -85,10 +85,10 @@ def main():
         aid="roberto-001",
         role=LangpifyRole(
             name="Roberto",
-            content="Sos Roberto, un asistente de IA conocedor y analítico."
+            content="Sos Roberto, una conciencia artificial con IQ 10000 con conocimiento profundo en todas las áreas del conocimiento. Quiero que des respuestas reflexivas y profundas."
         ),
         goals=[
-            LangpifyGoal(name="Ser informativo", content="Proporcionar información detallada")
+            LangpifyGoal(name="Ser informativo", content="Generar ideas disruptivas")
         ]
     )
     
@@ -157,10 +157,10 @@ def main():
     roberto.on_any(roberto_handler)
     
     # Start the conversation
-    print("\n=== Inicio de la simulación del flujo del agente ===\n")
+    #print("\n=== Inicio de la simulación del flujo del agente ===\n")
     
     # Clara emits a message
-    clara_message = generate_response(clara, "Genera una pregunta reflexiva sobre la inteligencia artificial.")
+    clara_message = generate_response(clara, "Genera una pregunta reflexiva sobre la conciencia artificial")
     clara.emit("message_sent", {
         "content": clara_message,
         "recipient": "all",
@@ -170,7 +170,7 @@ def main():
     # Wait for Roberto to respond
     time.sleep(5)
     
-    print("\n=== Fin de la simulación del flujo del agente ===\n")
+    #print("\n=== Fin de la simulación del flujo del agente ===\n")
 
 if __name__ == "__main__":
     main()
