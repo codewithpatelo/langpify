@@ -5,6 +5,11 @@ from typing import Any, Callable, Dict, List, Optional, Set
 from dataclasses import dataclass
 
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import StateGraph
+from pydantic import BaseModel
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Implementación temporal de AgentCard hasta resolver python-a2a
 @dataclass
@@ -43,6 +48,12 @@ from .entities import (
     LangpifyLanguage,
     LangpifyRole,
     LangpifyStatus,
+    LangpifyAgentType,
+    LangpifyAuthorizations,
+    LangpifySafety,
+    AISettings,
+    LangpifyPlanning,
+    LangpifyLLM,
 )
 
 
@@ -83,23 +94,26 @@ class LangpifyBaseAgent():
     def __init__(
         self,
         aid: Optional[str] = None,
+        name: str = None,
+        type: Optional[LangpifyAgentType] = None,
         role: Optional[LangpifyRole] = None,
         goals: Optional[List[LangpifyGoal]] = None,
-      #  settings: Optional[_AISettings] = None,
+        authorizations: Optional[LangpifyAuthorizations] = None,
+        safety: Optional[LangpifySafety] = None,
+        status: LangpifyStatus = LangpifyStatus.INITIATED,
+        settings: Optional[AISettings] = None,
+        language: Optional[LangpifyLanguage] = None,
+        planning: Optional[LangpifyPlanning] = None,
+        response_model: Optional[type[BaseModel]] = None,
+        state_schema: Optional[type[BaseModel]] = None,
+        tools: Optional[List[Callable]] = None,
+        sub_workflows: Optional[list[StateGraph]] = None,
     ):
-
-        ## CONFIGURACIÓN DEL AGENTE ##
-
-       # self.settings = settings or GlobalAISettings
-
-        ## Atributos del Agente ##
-        ## IDENTIDAD DEL AGENTE ##
-        # Identificador - genera un UUID si no se proporciona
-        self.aid = aid or str(uuid.uuid4())
-        # Para más info -> http://fipa.org/specs/fipa00023/SC00023K.html (3)
-
-        # Rol (Variable inyectada en prompt dinamico)
-        self.role = role or {"name": "", "content": ""}
+        """IDENTITY"""
+        self.aid: Optional[str] = aid if aid is not None else f"agent_{uuid.uuid4()}"
+        self.name: str = name
+        self.role: Optional[LangpifyRole] = role or {"name": "", "content": ""}
+        self.type: Optional[LangpifyAgentType] = type
 
         # Tarjeta de agente compatible con A2A
         self.agent_card = AgentCard(
@@ -111,35 +125,58 @@ class LangpifyBaseAgent():
             skills=[],
         )
         # Para más info -> https://google.github.io/A2A/specification/agent-card/
-        # Esto se usa para que al agente pueda ser "descubierto" por agentes de otras aplicaciones
 
-        ## CICLO DE VIDA ##
-        self.status = LangpifyStatus.INITIATED
+        """ LIFECYCLE """
+        self.status: LangpifyStatus = status
         # Inspirado en ciclo de vida de FIPA y ACP
         # Para más info -> http://fipa.org/specs/fipa00023/SC00023K.html (5.1)
         # https://www.researchgate.net/figure/Agent-life-cycle-as-defined-by-FIPA_fig1_332959107
-        # ACP -> https://workos.com/blog/ibm-agent-communication-protocol-acp
 
-        ## PROCESOS MENTALES BASICOS ##
+        """ GOVERNANCE """
+        self.authorizations: LangpifyAuthorizations = authorizations or {
+            "access_token": "*",
+            "organizations": ["*"],
+            "applications": ["*"],
+            "projects": ["*"],
+            "roles": ["*"],
+        }
+        self.safety: LangpifySafety = safety or {"guardrails": {"prompt": "*"}}
+        self.settings: Optional[AISettings] = settings
 
-        # 1. Percepción
-        # Inicializar el estado según el framework configurado
-       # if self.settings.framework.value == "langgraph":
-        #    try:
-        #        from langgraph.graph import StateGraph
+        """ LANGUAGE MENTAL PROCESSES """
+        self.language: Optional[LangpifyLanguage] = language
+        # Language model configuration for communication
 
-         #       self.state = StateGraph
-            #  except ImportError:
-            #    self.state = LangpifyAgentState
-       # else:
-         #   self.state = LangpifyAgentState
+        """ PLANNING MENTAL PROCESSES """
+        self.planning: Optional[LangpifyPlanning] = planning
+        self.response_model: Optional[type[BaseModel]] = response_model
+        self.state_schema: Optional[type[BaseModel]] = state_schema
+        self.tools: Optional[List[Callable]] = tools
+        self.sub_workflows: Optional[list[StateGraph]] = sub_workflows
+        # Planning includes workflow, execution protocol, and goals
 
-        # Entendemos a un estado como un conjunto de caracteristicas internas dado un momento dado.
-        # Por su parte, un evento es toda variedad de estados (sea internos o externos).
+        """ MEMORY MENTAL PROCESSES 
+        Reserved for Memory Engines (short-term, long-term)
+        
+        Short-Term -> Session Context | Example: Langgraph's MemorySaver
+        Long-Term -> Episodic, Semantic, Procedural | Example: Langgraph's Store with PostgreSQL + Milvus
+        
+        In productive environments we would work with SQL, Mongodb and/or Vectorial/Graph Databases accordingly
+        """
 
-        # Sistema de eventos
+        """ REASONING MENTAL PROCESSES 
+        Reserved for CoT and Inference Engines like Prolog
+        
+        In Langpify we include Decision-Support Algorithms like TOPSIS and other Multi-Criteria Methods.
+        """
 
-        # El agente puede "percibir" eventos del entornoa través de sensores (funcionan como event listeners) -> sensors
+        """ PERCEPTION MENTAL PROCESSES 
+        Reserved for Event Communication 
+        
+        Event-based Sensors and Actuators | Fuzzy Thresholds for Reactions
+        """
+
+        # El agente puede "percibir" eventos del entorno a través de sensores (funcionan como event listeners)
         self._local_sensors: Dict[str, List[Callable[[LangpifyEvent], None]]] = {}
         # Sensores locales escuchan eventos de un tipo en particular
 
@@ -148,6 +185,9 @@ class LangpifyBaseAgent():
 
         # IDs de otros agentes a los que este agente escucha
         self._subscribed_agents: Set[str] = set()
+
+        # Goals for goal-oriented behavior
+        self.goals: Optional[List[LangpifyGoal]] = goals or []
 
         # Este sistema de comunicación será, por el momento, únicamente entre agentes de la misma aplicación
         # Para comunicación entre agentes de otro sistema usamos A2A, registrando este agente usando el método register
