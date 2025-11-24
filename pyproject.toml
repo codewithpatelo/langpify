@@ -45,6 +45,11 @@ pytest-cov = "^4.1.0"
 python-dotenv = "^1.0.0"
 openai = "^1.0.0"
 langchain-groq = "^0.3.7"
+fastapi = "^0.122.0"
+uvicorn = {extras = ["standard"], version = "^0.38.0"}
+websockets = "^15.0.1"
+edge-tts = "^7.2.3"
+python-multipart = "^0.0.20"
 
 [build-system]
 requires = ["poetry-core"]
