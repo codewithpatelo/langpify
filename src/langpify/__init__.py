@@ -6,11 +6,14 @@ __email__ = "pj.patriciojulian@gmail.com"
 
 # Import main classes for easy access
 from .entities import LangpifyBaseAgent, LangpifyRole, LangpifyGoal
+from .entities.entities import LangpifyNeed, LangpifyAgentResponse
 from .utils import LangpifySanitizationUtils
 
 __all__ = [
     "LangpifyBaseAgent",
     "LangpifyRole", 
     "LangpifyGoal",
+    "LangpifyNeed",
+    "LangpifyAgentResponse",
     "LangpifySanitizationUtils",
 ]

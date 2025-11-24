@@ -84,6 +84,123 @@ class LangpifyDynamicPrompt(BaseModel):
     guardrails: Optional[str] = None
 
 
+class LangpifyNeed(BaseModel):
+    """Represents a need with homeostatic dynamics inspired by psychological motivation theory.
+    
+    A need has a current value that decays over time and can be satisfied through specific events.
+    This creates emergent behavior where agents are driven by internal states.
+    
+    Attributes:
+        name: Unique identifier for the need (e.g., 'life_purpose', 'social_connection')
+        value: Current satisfaction level (0.0 = completely unsatisfied, 1.0 = fully satisfied)
+        decay_rate: Rate at which the need decays per second (linear decay)
+        satiation_rate: Rate at which the need is satisfied when satiation event occurs
+        satiation_event_type: Type of event that satisfies this need
+        min_value: Minimum value the need can reach (default 0.0)
+        max_value: Maximum value the need can reach (default 1.0)
+        last_updated: Timestamp of last update (seconds since epoch)
+        description: Human-readable description of what this need represents
+    """
+    name: str
+    value: float = 0.5  # Start at medium satisfaction
+    decay_rate: float = 0.01  # Default: 1% decay per second
+    satiation_rate: float = 0.3  # Default: 30% increase per satiation event
+    satiation_event_type: str = "generic_satisfaction"
+    min_value: float = 0.0
+    max_value: float = 1.0
+    last_updated: float = 0.0  # Will be set to current time on initialization
+    description: Optional[str] = None
+    
+    def decay(self, elapsed_seconds: float) -> float:
+        """Apply decay function to the need value.
+        
+        Uses linear decay: value -= decay_rate * elapsed_seconds
+        
+        Args:
+            elapsed_seconds: Time elapsed since last update
+            
+        Returns:
+            New value after decay
+        """
+        decayed_value = self.value - (self.decay_rate * elapsed_seconds)
+        self.value = max(self.min_value, decayed_value)
+        return self.value
+    
+    def satiate(self, satiation_amount: Optional[float] = None) -> float:
+        """Apply satiation function to the need value.
+        
+        Uses exponential satiation with diminishing returns:
+        The closer to max_value, the less effective satiation becomes.
+        
+        Args:
+            satiation_amount: Optional custom satiation amount. If None, uses satiation_rate
+            
+        Returns:
+            New value after satiation
+        """
+        if satiation_amount is None:
+            satiation_amount = self.satiation_rate
+        
+        # Exponential satiation with diminishing returns
+        # The formula: value + satiation_amount * (1 - value)^2
+        # This means: the higher the current value, the less effective satiation is
+        remaining_capacity = self.max_value - self.value
+        effective_satiation = satiation_amount * (remaining_capacity / self.max_value) ** 0.5
+        
+        new_value = self.value + effective_satiation
+        self.value = min(self.max_value, new_value)
+        return self.value
+    
+    def get_urgency_level(self) -> str:
+        """Get a human-readable urgency level based on current value.
+        
+        Returns:
+            String describing urgency: 'critical', 'high', 'medium', 'low', 'satisfied'
+        """
+        if self.value < 0.2:
+            return "critical"
+        elif self.value < 0.4:
+            return "high"
+        elif self.value < 0.6:
+            return "medium"
+        elif self.value < 0.8:
+            return "low"
+        else:
+            return "satisfied"
+    
+    def to_context_string(self) -> str:
+        """Generate a context string for LLM prompts.
+        
+        Returns:
+            Formatted string describing the need state
+        """
+        urgency = self.get_urgency_level()
+        percentage = int(self.value * 100)
+        return f"{self.name}: {percentage}% satisfied (urgency: {urgency})"
+
+
+class LangpifyAgentResponse(BaseModel):
+    """Structured response from an agent that includes introspection about needs.
+    
+    This model captures not just what the agent says, but also how it feels
+    and how the interaction affects its internal needs.
+    
+    Attributes:
+        response: The natural language response to the message
+        emotional_introspection: How the agent felt about the message
+        purpose_introspection: Numeric value (-1.0 to 1.0) indicating how the message
+                              affected the agent's sense of life purpose
+                              -1.0 = very detrimental to purpose
+                               0.0 = neutral
+                               1.0 = very fulfilling to purpose
+        reasoning: Optional chain of thought explaining the introspections
+    """
+    response: str
+    emotional_introspection: str
+    purpose_introspection: float  # -1.0 to 1.0
+    reasoning: Optional[str] = None
+
+
 class AISettings(TypedDict):
     """Settings for the AI framework
     Langpify works as a meta-framework, allowing higher-level generalization

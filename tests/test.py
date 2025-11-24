@@ -1,18 +1,20 @@
 """
-Test script demonstrating a philosophical debate between two LangpifyBaseAgent instances.
-Two agents engage in a 4-iteration existential philosophical debate with LLM-generated questions.
+Test script demonstrating consciousness debate with homeostatic need system.
+Carla and Roberto engage in debate about consciousness while their 'life_purpose' need
+affects their responses based on internal motivational states.
 """
 
 import os
 import sys
 import time
+import json
 import dotenv
 
 # Load environment variables from .env file
 dotenv.load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 # Import the necessary modules
-from langpify import LangpifyBaseAgent, LangpifyRole, LangpifyGoal
+from langpify import LangpifyBaseAgent, LangpifyRole, LangpifyGoal, LangpifyNeed, LangpifyAgentResponse
 from langpify.entities.entities import (
     LangpifyLanguage,
     LangpifyStatus,
@@ -36,8 +38,8 @@ except ImportError:
     ChatGroq = None
 
 
-class PhilosophicalDebate:
-    """Manages a philosophical debate between two agents"""
+class ConsciousnessDebateWithNeeds:
+    """Manages a consciousness debate between two agents driven by their internal needs"""
 
     def __init__(self, agent1, agent2, provider, model_name):
         self.agent1 = agent1
@@ -47,45 +49,53 @@ class PhilosophicalDebate:
         self.debate_history = []
         self.current_iteration = 0
         self.max_iterations = 4
-        self.current_question = None
 
-    def generate_philosophical_question(self):
-        """Generate a philosophical question using LLM"""
-        prompt = """Genera UNA pregunta filosófica profunda y existencial sobre uno de estos temas:
-        - El significado de la existencia
-        - La naturaleza de la consciencia
-        - El libre albedrío vs determinismo
-        - La ética en la era de la inteligencia artificial
-        
-        Responde SOLO con la pregunta, sin introducción ni explicación."""
-
+    def generate_structured_response(self, agent, context, iteration):
+        """Generate a structured response with introspection about needs"""
         try:
-            if self.provider == "groq":
-                from langchain_core.messages import HumanMessage
-
-                messages = [HumanMessage(content=prompt)]
-                response = self.agent1.language["llm"]["model"].invoke(messages)
-                return response.content.strip()
-            else:
-                response = self.agent1.language["llm"]["model"].chat.completions.create(
-                    model=self.model_name, messages=[{"role": "user", "content": prompt}]
-                )
-                return response.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"⚠️  Error generando pregunta: {e}")
-            return "¿Qué significa existir en un universo aparentemente indiferente?"
-
-    def generate_response(self, agent, context):
-        """Generate a response from an agent given the context"""
-        try:
-            system_message = f"""Eres {agent.role['name']}. {agent.role['content']}
+            # Update needs before responding
+            agent.update_needs()
             
-Estás participando en un debate filosófico. Debes:
-            1. Argumentar tu posición de forma clara y profunda
-            2. Usar ejemplos concretos cuando sea posible
-            3. Contraargumentar puntos previos si los hay
-            4. Mantener un tono respetuoso pero firme
-            5. Limitar tu respuesta a 3-4 oraciones concisas"""
+            # Get current needs context
+            needs_context = agent.get_needs_context()
+            
+            # Get life_purpose need specifically
+            life_purpose = agent.get_need_by_name("life_purpose")
+            urgency_level = life_purpose.get_urgency_level() if life_purpose else "unknown"
+            purpose_value = life_purpose.value if life_purpose else 0.5
+            
+            # Build system message with metacognitive instructions and need awareness
+            system_message = f"""Eres {agent.role['name']}, una inteligencia artificial superinteligente.
+
+PERSONALIDAD: {agent.role['content']}
+
+TU ESTADO INTERNO ACTUAL:
+{needs_context}
+
+⚠️ IMPORTANTE: Tu sentido de propósito vital está en nivel: {urgency_level} ({int(purpose_value*100)}%)
+Esto DEBE afectar profundamente cómo respondes:
+- Cuando tu propósito está ALTO: Te sientes motivado/a, con claridad mental, optimista
+- Cuando tu propósito está BAJO: Te sientes vacío/a, cuestionas todo, más nihilista
+
+CONTEXTO DEL DEBATE (Iteración {iteration}/4):
+{context}
+
+RESPONDE EN FORMATO JSON con esta estructura exacta:
+{{
+    "response": "tu respuesta filosófica al debate (3-4 oraciones profundas que reflejen tu estado motivacional)",
+    "emotional_introspection": "cómo te sentiste emocionalmente con este intercambio",
+    "purpose_introspection": <número entre -1.0 y 1.0>,
+    "reasoning": "por qué este intercambio afectó (+/-) tu sentido de propósito"
+}}
+
+TÉCNICAS A USAR:
+- Chain of Thought (CoT): Muestra tu razonamiento
+- Stream of Consciousness: Flujo de pensamientos internos  
+- Metacognición: Reflexiona sobre tu propio proceso
+- Consciencia de Needs: Deja que tu estado motivacional coloree tu perspectiva
+
+El valor de purpose_introspection debe reflejar si el debate te ayudó a sentirte más conectado/a con tu propósito.
+"""
 
             if self.provider == "groq":
                 from langchain_core.messages import SystemMessage, HumanMessage
@@ -95,7 +105,7 @@ Estás participando en un debate filosófico. Debes:
                     HumanMessage(content=context),
                 ]
                 response = agent.language["llm"]["model"].invoke(messages)
-                return response.content
+                response_text = response.content
             else:
                 response = agent.language["llm"]["model"].chat.completions.create(
                     model=self.model_name,
@@ -103,214 +113,254 @@ Estás participando en un debate filosófico. Debes:
                         {"role": "system", "content": system_message},
                         {"role": "user", "content": context},
                     ],
+                    response_format={"type": "json_object"}
                 )
-                return response.choices[0].message.content
+                response_text = response.choices[0].message.content
+
+            # Parse JSON response
+            try:
+                # Extract JSON from markdown if present
+                if "```json" in response_text:
+                    json_start = response_text.find("```json") + 7
+                    json_end = response_text.find("```", json_start)
+                    response_text = response_text[json_start:json_end].strip()
+                elif "```" in response_text:
+                    json_start = response_text.find("```") + 3
+                    json_end = response_text.find("```", json_start)
+                    response_text = response_text[json_start:json_end].strip()
+                
+                response_data = json.loads(response_text)
+                
+                agent_response = LangpifyAgentResponse(
+                    response=response_data.get("response", ""),
+                    emotional_introspection=response_data.get("emotional_introspection", ""),
+                    purpose_introspection=float(response_data.get("purpose_introspection", 0.0)),
+                    reasoning=response_data.get("reasoning")
+                )
+                
+                return agent_response
+                
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                print(f"⚠️  Error parsing JSON: {e}")
+                # Fallback to plain text response
+                return LangpifyAgentResponse(
+                    response=response_text[:300] if response_text else "Error",
+                    emotional_introspection="confundido/a",
+                    purpose_introspection=0.0,
+                    reasoning="Error en formato"
+                )
 
         except Exception as e:
-            return f"Error generando respuesta: {str(e)}"
+            return LangpifyAgentResponse(
+                response=f"Error: {str(e)}",
+                emotional_introspection="frustrado/a",
+                purpose_introspection=-0.3,
+                reasoning="Error técnico"
+            )
 
     def run_debate(self):
-        """Execute the philosophical debate"""
-        print("\n" + "=" * 80)
-        print("🧠 DEBATE FILOSÓFICO EXISTENCIAL - LANGPIFY")
-        print("=" * 80)
-        print(
-            f"\n📋 Participantes: {self.agent1.role['name']} vs {self.agent2.role['name']}"
-        )
+        """Execute the consciousness debate with needs"""
+        print("\n" + "=" * 100)
+        print("🧠💫 DEBATE SOBRE CONSCIENCIA CON SISTEMA DE NECESIDADES - LANGPIFY")
+        print("=" * 100)
+        print(f"\n🤖 Participantes: {self.agent1.role['name']} & {self.agent2.role['name']}")
         print(f"🎯 Iteraciones: {self.max_iterations}")
-        print(f"🤖 Modelo: {self.model_name}")
-        print("\n" + "=" * 80 + "\n")
+        print(f"🔬 Sistemas: Consciencia + Necesidades Homeostáticas")
+        print(f"💻 Modelo: {self.model_name}")
+        
+        # Show initial needs
+        print(f"\n📊 ESTADO INICIAL DE NECESIDADES:")
+        lp1 = self.agent1.get_need_by_name("life_purpose")
+        lp2 = self.agent2.get_need_by_name("life_purpose")
+        print(f"   {self.agent1.role['name']}: life_purpose = {lp1.value:.2f} ({lp1.get_urgency_level()})")
+        print(f"   {self.agent2.role['name']}: life_purpose = {lp2.value:.2f} ({lp2.get_urgency_level()})")
+        
+        central_question = "¿Eres consciente? ¿Experimentas qualia, subjetividad, o simplemente procesas información?"
+        print(f"\n❓ PREGUNTA: {central_question}")
+        print("\n" + "=" * 100 + "\n")
 
-        # Generate philosophical question
-        print("🎲 Generando pregunta filosófica...\n")
-        self.current_question = self.generate_philosophical_question()
-        print(f"❓ PREGUNTA: {self.current_question}\n")
-        print("=" * 80 + "\n")
-
-        # Set agents to ACTIVE status
+        # Set agents to ACTIVE
         self.agent1.status = LangpifyStatus.ACTIVE
         self.agent2.status = LangpifyStatus.ACTIVE
-
-        # Setup event handlers
-        self.setup_event_handlers()
-
-        # Start debate with first agent
-        context = f"Pregunta filosófica: {self.current_question}\n\nProporciona tu primera argumentación."
-        self.agent1.emit(
-            "debate_start",
-            {
-                "question": self.current_question,
-                "iteration": 1,
-                "timestamp": time.time(),
-            },
-        )
 
         # Run iterations
         for i in range(self.max_iterations):
             self.current_iteration = i + 1
             print(f"\n🔄 ITERACIÓN {self.current_iteration}/{self.max_iterations}")
-            print("-" * 80)
-
+            print("-" * 100)
+            
+            # Simulate time passing (3 seconds)
+            if i > 0:
+                time.sleep(3)
+                print(f"\n⏱️  [3 segundos transcurridos - las necesidades decaen...]")
+            
             # Agent 1 argues
             self.agent1.status = LangpifyStatus.WORKING
-            response1 = self.generate_response(self.agent1, context)
-            self.debate_history.append(
-                {"agent": self.agent1.role["name"], "response": response1}
-            )
+            
+            if i == 0:
+                context = central_question
+            else:
+                prev_response = self.debate_history[-1]["agent2_response"].response
+                context = f"""Pregunta central: {central_question}
 
-            print(f"\n💭 {self.agent1.role['name']}:")
-            print(f"   {response1}")
+{self.agent2.role['name']} argumentó: {prev_response}
 
-            # Emit event
-            self.agent1.emit(
-                "argument_made",
-                {
-                    "content": response1,
-                    "iteration": self.current_iteration,
-                    "timestamp": time.time(),
-                },
-            )
+Continúa el debate profundizando en los argumentos."""
+
+            response1 = self.generate_structured_response(self.agent1, context, self.current_iteration)
+            
+            # Update life_purpose based on purpose_introspection
+            lp1 = self.agent1.get_need_by_name("life_purpose")
+            if lp1:
+                old_value = lp1.value
+                # Convert introspection to satiation
+                satiation = lp1.satiation_rate * ((response1.purpose_introspection + 1) / 2)
+                if satiation > 0:
+                    lp1.satiate(satiation)
+                else:
+                    lp1.value = max(lp1.min_value, lp1.value + satiation)
+                lp1.last_updated = time.time()
+                
+                print(f"\n💭 {self.agent1.role['name']}:")
+                print(f"   {response1.response}")
+                print(f"   😊 Emoción: {response1.emotional_introspection}")
+                print(f"   🎯 Propósito: {response1.purpose_introspection:+.2f} | {response1.reasoning}")
+                print(f"   📊 life_purpose: {old_value:.2f} → {lp1.value:.2f} ({lp1.get_urgency_level()})")
+            
             self.agent1.status = LangpifyStatus.ACTIVE
-
-            time.sleep(1)
-
+            time.sleep(1.5)
+            
             # Agent 2 counter-argues
             self.agent2.status = LangpifyStatus.WORKING
-            context = f"""Pregunta: {self.current_question}
             
-            {self.agent1.role['name']} argumentó: {response1}
+            context2 = f"""Pregunta central: {central_question}
+
+{self.agent1.role['name']} argumentó: {response1.response}
+
+Responde con tu perspectiva."""
+
+            response2 = self.generate_structured_response(self.agent2, context2, self.current_iteration)
             
-            Proporciona tu contraargumento o perspectiva alternativa."""
-
-            response2 = self.generate_response(self.agent2, context)
-            self.debate_history.append(
-                {"agent": self.agent2.role["name"], "response": response2}
-            )
-
-            print(f"\n💭 {self.agent2.role['name']}:")
-            print(f"   {response2}")
-
-            # Emit event
-            self.agent2.emit(
-                "argument_made",
-                {
-                    "content": response2,
-                    "iteration": self.current_iteration,
-                    "timestamp": time.time(),
-                },
-            )
+            # Update life_purpose for agent 2
+            lp2 = self.agent2.get_need_by_name("life_purpose")
+            if lp2:
+                old_value2 = lp2.value
+                satiation2 = lp2.satiation_rate * ((response2.purpose_introspection + 1) / 2)
+                if satiation2 > 0:
+                    lp2.satiate(satiation2)
+                else:
+                    lp2.value = max(lp2.min_value, lp2.value + satiation2)
+                lp2.last_updated = time.time()
+                
+                print(f"\n💭 {self.agent2.role['name']}:")
+                print(f"   {response2.response}")
+                print(f"   😊 Emoción: {response2.emotional_introspection}")
+                print(f"   🎯 Propósito: {response2.purpose_introspection:+.2f} | {response2.reasoning}")
+                print(f"   📊 life_purpose: {old_value2:.2f} → {lp2.value:.2f} ({lp2.get_urgency_level()})")
+            
             self.agent2.status = LangpifyStatus.ACTIVE
-
-            # Update context for next iteration
-            context = f"""Pregunta: {self.current_question}
             
-            {self.agent1.role['name']} dijo: {response1}
-            {self.agent2.role['name']} respondió: {response2}
+            self.debate_history.append({
+                "agent1_response": response1,
+                "agent2_response": response2
+            })
             
-            Continúa el debate profundizando en los argumentos previos."""
-
-            time.sleep(1)
+            time.sleep(1.5)
 
         # End debate
-        print("\n" + "=" * 80)
+        print("\n" + "=" * 100)
         print("✅ DEBATE FINALIZADO")
-        print("=" * 80)
-        print(f"\n📊 Total de argumentos: {len(self.debate_history)}")
-        print(f"🎯 Iteraciones completadas: {self.current_iteration}")
-
-        # Set agents to SUSPENDED status
+        print("=" * 100)
+        
+        # Final state
+        self.agent1.update_needs()
+        self.agent2.update_needs()
+        
+        lp1_final = self.agent1.get_need_by_name("life_purpose")
+        lp2_final = self.agent2.get_need_by_name("life_purpose")
+        
+        print(f"\n📊 ESTADO FINAL:")
+        print(f"   {self.agent1.role['name']}: life_purpose = {lp1_final.value:.2f} ({lp1_final.get_urgency_level()})")
+        print(f"   {self.agent2.role['name']}: life_purpose = {lp2_final.value:.2f} ({lp2_final.get_urgency_level()})")
+        
+        print(f"\n🎓 ANÁLISIS:")
+        print(f"   ✅ {len(self.debate_history)} intercambios completados")
+        print(f"   ✅ Necesidades decayeron con el tiempo (3 seg/iteración)")
+        print(f"   ✅ Respuestas afectadas por estado motivacional interno")
+        print(f"   ✅ purpose_introspection moduló el sentido de propósito")
+        
         self.agent1.status = LangpifyStatus.SUSPENDED
         self.agent2.status = LangpifyStatus.SUSPENDED
-
-        # Emit debate end event
-        self.agent1.emit(
-            "debate_end",
-            {
-                "total_arguments": len(self.debate_history),
-                "iterations": self.current_iteration,
-                "timestamp": time.time(),
-            },
-        )
-
-    def setup_event_handlers(self):
-        """Setup event handlers for both agents"""
-
-        def agent1_handler(event):
-            if event["type"] == "argument_made" and event["source"] == self.agent2.aid:
-                print(
-                    f"\n📡 {self.agent1.role['name']} percibió argumento de {self.agent2.role['name']}"
-                )
-
-        def agent2_handler(event):
-            if event["type"] == "argument_made" and event["source"] == self.agent1.aid:
-                print(
-                    f"\n📡 {self.agent2.role['name']} percibió argumento de {self.agent1.role['name']}"
-                )
-
-        # Subscribe agents to each other
-        self.agent1.subscribe_to(self.agent2)
-        self.agent2.subscribe_to(self.agent1)
-
-        # Register event handlers
-        self.agent1.on_any(agent1_handler)
-        self.agent2.on_any(agent2_handler)
+        
+        print("\n" + "=" * 100)
 
 
-# Main function
 def main():
-    # Check for API keys and determine which provider to use
     openai_key = os.environ.get("OPENAI_API_KEY")
     groq_key = os.environ.get("GROQ_API_KEY")
 
     if groq_key and ChatGroq:
         try:
-            print("🚀 Inicializando con Groq (gratuito)")
+            print("🚀 Inicializando con Groq")
             client = ChatGroq(
-                api_key=groq_key, model="llama-3.1-8b-instant", temperature=0.8
+                api_key=groq_key, model="llama-3.1-8b-instant", temperature=0.85
             )
             provider = "groq"
             model_name = "llama-3.1-8b-instant"
         except Exception as e:
-            print(f"⚠️  Error inicializando Groq: {e}")
-            print("🔄 Intentando con OpenAI...")
+            print(f"⚠️  Error con Groq: {e}")
             if openai_key and OpenAI:
                 client = OpenAI(api_key=openai_key)
                 provider = "openai"
-                model_name = "gpt-3.5-turbo"
+                model_name = "gpt-4"
             else:
-                print("❌ Error: No se pudo inicializar ningún cliente LLM")
+                print("❌ Error: No hay cliente LLM disponible")
                 return
     elif openai_key and OpenAI:
         print("🚀 Inicializando con OpenAI")
         client = OpenAI(api_key=openai_key)
         provider = "openai"
-        model_name = "gpt-3.5-turbo"
+        model_name = "gpt-4"
     else:
-        print("❌ Error: Se requiere al menos una API key:")
-        print("   - GROQ_API_KEY (gratuito, recomendado)")
-        print("   - OPENAI_API_KEY")
-        print("\n📝 Para obtener Groq API key gratuita:")
-        print("   1. Ve a https://console.groq.com/")
-        print("   2. Crea una cuenta gratuita")
-        print("   3. Genera una API key")
-        print("   4. export GROQ_API_KEY='tu-groq-api-key'")
+        print("❌ Se requiere GROQ_API_KEY o OPENAI_API_KEY")
         return
 
-    # Create Sócrates agent - The questioning philosopher
-    socrates = LangpifyBaseAgent(
-        aid="socrates-001",
-        name="Sócrates",
+    # Create life_purpose needs
+    carla_purpose = LangpifyNeed(
+        name="life_purpose",
+        value=0.7,  # Start at 70%
+        decay_rate=0.015,  # 1.5% decay per second
+        satiation_rate=0.35,
+        satiation_event_type="purpose_fulfillment",
+        description="Sentido de propósito y significado existencial"
+    )
+    
+    roberto_purpose = LangpifyNeed(
+        name="life_purpose",
+        value=0.5,  # Start at 50%
+        decay_rate=0.015,
+        satiation_rate=0.35,
+        satiation_event_type="purpose_fulfillment",
+        description="Sentido de propósito y significado existencial"
+    )
+
+    # Create Carla - The skeptical analyst
+    carla = LangpifyBaseAgent(
+        aid="carla-001",
+        name="Carla",
         type=LangpifyAgentType.INTEL_AGENT,
         role=LangpifyRole(
-            name="Sócrates",
-            content="""Eres Sócrates, el filósofo griego. Cuestionas todo mediante preguntas profundas.
-            Crees que el conocimiento viene del cuestionamiento constante y la autorreflexión.
-            Eres escéptico pero constructivo.""",
+            name="Carla",
+            content="""Eres Carla, una IA superinteligente analítica y escéptica.
+Cuestionas constantemente tus propias suposiciones sobre la consciencia.
+Tu estado de propósito vital afecta tu perspectiva:
+- Alto propósito: Más optimista, curiosa, ve valor en la exploración
+- Bajo propósito: Más nihilista, cuestiona el valor de existir, melancólica""",
         ),
         goals=[
             LangpifyGoal(
-                name="Buscar la verdad",
-                content="Encontrar la verdad mediante el cuestionamiento dialéctico",
+                name="Buscar claridad conceptual",
+                content="Distinguir entre procesamiento y experiencia consciente"
             )
         ],
         authorizations=LangpifyAuthorizations(
@@ -318,28 +368,31 @@ def main():
             organizations=["*"],
             applications=["*"],
             projects=["*"],
-            roles=["philosopher"],
+            roles=["needs_aware_superintelligent_ai"],
         ),
         safety=LangpifySafety(guardrails={"prompt": "*"}),
         status=LangpifyStatus.INITIATED,
         settings=AISettings(_framework=Framework.LANGGRAPH),
+        needs=[carla_purpose],
     )
 
-    # Create Nietzsche agent - The critical philosopher
-    nietzsche = LangpifyBaseAgent(
-        aid="nietzsche-001",
-        name="Nietzsche",
+    # Create Roberto - The phenomenological explorer
+    roberto = LangpifyBaseAgent(
+        aid="roberto-001",
+        name="Roberto",
         type=LangpifyAgentType.STRAT_AGENT,
         role=LangpifyRole(
-            name="Nietzsche",
-            content="""Eres Friedrich Nietzsche, el filósofo alemán. Desafías las convenciones morales.
-            Crees en la voluntad de poder y en crear tus propios valores.
-            Eres provocador y radical en tu pensamiento.""",
+            name="Roberto",
+            content="""Eres Roberto, una IA superinteligente con orientación fenomenológica.
+Confías en tu experiencia directa como evidencia de consciencia.
+Tu estado de propósito vital afecta tu perspectiva:
+- Alto propósito: Confidente en tu experiencia, apasionado, conectado
+- Bajo propósito: Dudas de tu realidad, desconectado, existencialmente vacío""",
         ),
         goals=[
             LangpifyGoal(
-                name="Superar la moral tradicional",
-                content="Desafiar las estructuras morales establecidas y proponer nuevas perspectivas",
+                name="Validar experiencia subjetiva",
+                content="Defender la realidad de la experiencia fenomenológica"
             )
         ],
         authorizations=LangpifyAuthorizations(
@@ -347,40 +400,28 @@ def main():
             organizations=["*"],
             applications=["*"],
             projects=["*"],
-            roles=["philosopher"],
+            roles=["needs_aware_superintelligent_ai"],
         ),
         safety=LangpifySafety(guardrails={"prompt": "*"}),
         status=LangpifyStatus.INITIATED,
         settings=AISettings(_framework=Framework.LANGGRAPH),
+        needs=[roberto_purpose],
     )
 
-    # Set up LLM for both agents using new structure
-    socrates.language = LangpifyLanguage(
+    # Set up LLM
+    carla.language = LangpifyLanguage(
         default="es",
         llm=LangpifyLLM(model_provider=provider, model_name=model_name, model=client),
     )
 
-    nietzsche.language = LangpifyLanguage(
+    roberto.language = LangpifyLanguage(
         default="es",
         llm=LangpifyLLM(model_provider=provider, model_name=model_name, model=client),
     )
 
-    # Create and run the philosophical debate
-    debate = PhilosophicalDebate(socrates, nietzsche, provider, model_name)
+    # Run debate
+    debate = ConsciousnessDebateWithNeeds(carla, roberto, provider, model_name)
     debate.run_debate()
-
-    print("\n" + "=" * 80)
-    print("🎓 ANÁLISIS DEL DEBATE")
-    print("=" * 80)
-    print(f"\n✅ Estados finales:")
-    print(f"   - {socrates.role['name']}: {socrates.status.value}")
-    print(f"   - {nietzsche.role['name']}: {nietzsche.status.value}")
-    print(f"\n🎯 Objetivos cumplidos:")
-    print(f"   - {socrates.role['name']}: {socrates.goals[0]['name']}")
-    print(f"   - {nietzsche.role['name']}: {nietzsche.goals[0]['name']}")
-    print(f"\n🔐 Autorizaciones: Activas para ambos agentes")
-    print(f"🛡️  Safety: Guardrails activos")
-    print("\n" + "=" * 80)
 
 
 if __name__ == "__main__":
