@@ -5,6 +5,11 @@ from typing import Any, Callable, Dict, List, Optional, Set
 from dataclasses import dataclass
 
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import StateGraph
+from pydantic import BaseModel
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Implementación temporal de AgentCard hasta resolver python-a2a
 @dataclass
@@ -43,6 +48,14 @@ from .entities import (
     LangpifyLanguage,
     LangpifyRole,
     LangpifyStatus,
+    LangpifyAgentType,
+    LangpifyAuthorizations,
+    LangpifySafety,
+    AISettings,
+    LangpifyPlanning,
+    LangpifyLLM,
+    LangpifyNeed,
+    LangpifyAgentResponse,
 )
 
 
@@ -83,23 +96,28 @@ class LangpifyBaseAgent():
     def __init__(
         self,
         aid: Optional[str] = None,
+        name: str = None,
+        type: Optional[LangpifyAgentType] = None,
         role: Optional[LangpifyRole] = None,
         goals: Optional[List[LangpifyGoal]] = None,
-      #  settings: Optional[_AISettings] = None,
+        authorizations: Optional[LangpifyAuthorizations] = None,
+        safety: Optional[LangpifySafety] = None,
+        status: LangpifyStatus = LangpifyStatus.INITIATED,
+        settings: Optional[AISettings] = None,
+        language: Optional[LangpifyLanguage] = None,
+        planning: Optional[LangpifyPlanning] = None,
+        response_model: Optional[type[BaseModel]] = None,
+        state_schema: Optional[type[BaseModel]] = None,
+        tools: Optional[List[Callable]] = None,
+        skills: Optional[List[Callable]] = None,
+        sub_workflows: Optional[list[StateGraph]] = None,
+        needs: Optional[List[LangpifyNeed]] = None,
     ):
-
-        ## CONFIGURACIÓN DEL AGENTE ##
-
-       # self.settings = settings or GlobalAISettings
-
-        ## Atributos del Agente ##
-        ## IDENTIDAD DEL AGENTE ##
-        # Identificador - genera un UUID si no se proporciona
-        self.aid = aid or str(uuid.uuid4())
-        # Para más info -> http://fipa.org/specs/fipa00023/SC00023K.html (3)
-
-        # Rol (Variable inyectada en prompt dinamico)
-        self.role = role or {"name": "", "content": ""}
+        """IDENTITY"""
+        self.aid: Optional[str] = aid if aid is not None else f"agent_{uuid.uuid4()}"
+        self.name: str = name
+        self.role: Optional[LangpifyRole] = role or {"name": "", "content": ""}
+        self.type: Optional[LangpifyAgentType] = type
 
         # Tarjeta de agente compatible con A2A
         self.agent_card = AgentCard(
@@ -108,38 +126,61 @@ class LangpifyBaseAgent():
             version="0.1.0",
             url="",
             capabilities=[],
-            skills=[],
+            skills=skills or [],
         )
         # Para más info -> https://google.github.io/A2A/specification/agent-card/
-        # Esto se usa para que al agente pueda ser "descubierto" por agentes de otras aplicaciones
 
-        ## CICLO DE VIDA ##
-        self.status = LangpifyStatus.INITIATED
+        """ LIFECYCLE """
+        self.status: LangpifyStatus = status
         # Inspirado en ciclo de vida de FIPA y ACP
         # Para más info -> http://fipa.org/specs/fipa00023/SC00023K.html (5.1)
         # https://www.researchgate.net/figure/Agent-life-cycle-as-defined-by-FIPA_fig1_332959107
-        # ACP -> https://workos.com/blog/ibm-agent-communication-protocol-acp
 
-        ## PROCESOS MENTALES BASICOS ##
+        """ GOVERNANCE """
+        self.authorizations: LangpifyAuthorizations = authorizations or {
+            "access_token": "*",
+            "organizations": ["*"],
+            "applications": ["*"],
+            "projects": ["*"],
+            "roles": ["*"],
+        }
+        self.safety: LangpifySafety = safety or {"guardrails": {"prompt": "*"}}
+        self.settings: Optional[AISettings] = settings
 
-        # 1. Percepción
-        # Inicializar el estado según el framework configurado
-       # if self.settings.framework.value == "langgraph":
-        #    try:
-        #        from langgraph.graph import StateGraph
+        """ LANGUAGE MENTAL PROCESSES """
+        self.language: Optional[LangpifyLanguage] = language
+        # Language model configuration for communication
 
-         #       self.state = StateGraph
-            #  except ImportError:
-            #    self.state = LangpifyAgentState
-       # else:
-         #   self.state = LangpifyAgentState
+        """ PLANNING MENTAL PROCESSES """
+        self.planning: Optional[LangpifyPlanning] = planning
+        self.response_model: Optional[type[BaseModel]] = response_model
+        self.state_schema: Optional[type[BaseModel]] = state_schema
+        self.tools: Optional[List[Callable]] = tools
+        self.sub_workflows: Optional[list[StateGraph]] = sub_workflows
+        # Planning includes workflow, execution protocol, and goals
 
-        # Entendemos a un estado como un conjunto de caracteristicas internas dado un momento dado.
-        # Por su parte, un evento es toda variedad de estados (sea internos o externos).
+        """ MEMORY MENTAL PROCESSES 
+        Reserved for Memory Engines (short-term, long-term)
+        
+        Short-Term -> Session Context | Example: Langgraph's MemorySaver
+        Long-Term -> Episodic, Semantic, Procedural | Example: Langgraph's Store with PostgreSQL + Milvus
+        
+        In productive environments we would work with SQL, Mongodb and/or Vectorial/Graph Databases accordingly
+        """
 
-        # Sistema de eventos
+        """ REASONING MENTAL PROCESSES 
+        Reserved for CoT and Inference Engines like Prolog
+        
+        In Langpify we include Decision-Support Algorithms like TOPSIS and other Multi-Criteria Methods.
+        """
 
-        # El agente puede "percibir" eventos del entornoa través de sensores (funcionan como event listeners) -> sensors
+        """ PERCEPTION MENTAL PROCESSES 
+        Reserved for Event Communication 
+        
+        Event-based Sensors and Actuators | Fuzzy Thresholds for Reactions
+        """
+
+        # El agente puede "percibir" eventos del entorno a través de sensores (funcionan como event listeners)
         self._local_sensors: Dict[str, List[Callable[[LangpifyEvent], None]]] = {}
         # Sensores locales escuchan eventos de un tipo en particular
 
@@ -148,6 +189,17 @@ class LangpifyBaseAgent():
 
         # IDs de otros agentes a los que este agente escucha
         self._subscribed_agents: Set[str] = set()
+
+        # Goals for goal-oriented behavior
+        self.goals: Optional[List[LangpifyGoal]] = goals or []
+
+        # MOTIVATIONAL MENTAL PROCESSES - Homeostatic need system
+        self.needs: Dict[str, LangpifyNeed] = {}
+        if needs:
+            current_time = time.time()
+            for need in needs:
+                need.last_updated = current_time
+                self.needs[need.name] = need
 
         # Este sistema de comunicación será, por el momento, únicamente entre agentes de la misma aplicación
         # Para comunicación entre agentes de otro sistema usamos A2A, registrando este agente usando el método register
@@ -210,7 +262,7 @@ class LangpifyBaseAgent():
     def sense(self, key: str) -> Optional[str]:
         return self.state.get(key, None)
 
-    # Event System Methods
+    ## Métodos del Sistema de Eventos ##
     def emit(self, event_type: str, data: Dict[str, Any] = None) -> None:
         """
         Emit an event to all subscribed listeners.
@@ -235,12 +287,12 @@ class LangpifyBaseAgent():
             # Opcionalmente podemos registrar que se ignoró un evento debido a la suspensión
             return
 
-        # Notify listeners for this specific event type
+        # Notificar a los listeners de este tipo de evento específico
         if event_type in self._local_sensors:
             for listener in self._local_sensors[event_type]:
                 listener(event)
 
-        # Notify global listeners that receive all events
+        # Notificar a los listeners globales que reciben todos los eventos
         for listener in self._global_sensors:
             listener(event)
 
@@ -299,10 +351,10 @@ class LangpifyBaseAgent():
         Args:
             agent: The agent to subscribe to
         """
-        # Add this agent as a subscriber to the other agent's events
+        # Agregar este agente como suscriptor a los eventos del otro agente
         self._subscribed_agents.add(agent.aid)
 
-        # Register a handler in the other agent to forward events to this agent
+        # Registrar un handler en el otro agente para reenviar eventos a este agente
         agent.on_any(self._handle_external_event)
 
     def unsubscribe_from(self, agent: "LangpifyBaseAgent") -> None:
@@ -332,16 +384,113 @@ class LangpifyBaseAgent():
             # Opcionalmente podemos registrar que se ignoró un evento externo debido a la suspensión
             return
 
-        # Process the event - by default just forward it to this agent's listeners
+        # Procesar el evento - por defecto solo reenviarlo a los listeners de este agente
         if event["source"] in self._subscribed_agents:
-            # Forward to specific event type listeners
+            # Reenviar a listeners de tipo de evento específico
             if event["type"] in self._local_sensors:
                 for listener in self._local_sensors[event["type"]]:
                     listener(event)
 
-            # Forward to global listeners
+            # Reenviar a listeners globales
             for listener in self._global_sensors:
                 listener(event)
+
+    ## Need System Methods ##
+    def update_needs(self) -> Dict[str, float]:
+        """
+        Update all needs based on elapsed time since last update.
+        
+        This method applies decay functions to all needs and should be called
+        periodically (e.g., before processing new messages).
+        
+        Returns:
+            Dictionary mapping need names to their updated values
+        """
+        current_time = time.time()
+        updated_values = {}
+        
+        for need_name, need in self.needs.items():
+            elapsed = current_time - need.last_updated
+            if elapsed > 0:
+                need.decay(elapsed)
+                need.last_updated = current_time
+            updated_values[need_name] = need.value
+        
+        # Emitir evento sobre actualización de necesidades
+        if self.needs:
+            self.emit("needs_updated", {"needs": updated_values})
+        
+        return updated_values
+    
+    def process_need_satisfaction(self, event_type: str, satiation_amount: Optional[float] = None) -> Dict[str, float]:
+        """
+        Process satisfaction of needs based on an event type.
+        
+        Checks if any needs are satisfied by the given event type and applies
+        satiation functions accordingly.
+        
+        Args:
+            event_type: Type of event that occurred
+            satiation_amount: Optional custom satiation amount for all matching needs
+            
+        Returns:
+            Dictionary mapping satisfied need names to their updated values
+        """
+        satisfied_needs = {}
+        current_time = time.time()
+        
+        for need_name, need in self.needs.items():
+            if need.satiation_event_type == event_type:
+                old_value = need.value
+                new_value = need.satiate(satiation_amount)
+                need.last_updated = current_time
+                satisfied_needs[need_name] = new_value
+                
+                # Emitir evento sobre satisfacción de necesidad
+                self.emit("need_satisfied", {
+                    "need_name": need_name,
+                    "old_value": old_value,
+                    "new_value": new_value,
+                    "event_type": event_type
+                })
+        
+        return satisfied_needs
+    
+    def get_needs_context(self) -> str:
+        """
+        Generate a context string describing all current needs.
+        
+        This string can be included in LLM prompts to make the agent aware
+        of its internal motivational state.
+        
+        Returns:
+            Formatted string describing all needs and their states
+        """
+        if not self.needs:
+            return "No active needs."
+        
+        # Actualizar necesidades antes de generar contexto
+        self.update_needs()
+        
+        context_lines = ["Current Internal Needs:"]
+        for need_name, need in self.needs.items():
+            context_lines.append(f"  - {need.to_context_string()}")
+            if need.description:
+                context_lines.append(f"    ({need.description})")
+        
+        return "\n".join(context_lines)
+    
+    def get_need_by_name(self, name: str) -> Optional[LangpifyNeed]:
+        """
+        Get a specific need by name.
+        
+        Args:
+            name: Name of the need to retrieve
+            
+        Returns:
+            The need if found, None otherwise
+        """
+        return self.needs.get(name)
 
     @abstractmethod
     def communicate(self, prompt: str) -> str:
