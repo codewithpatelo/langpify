@@ -1,8 +1,9 @@
-// Avatar 3D Manager usando Ready Player Me
-// Ready Player Me proporciona avatares 3D gratuitos
+// Avatar 3D Manager usando three-vrm (Pixiv oficial)
+// Modelos VRM oficiales del repositorio vrm-specification
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
 class Avatar3DManager {
     constructor(canvasId, gender = 'female') {
@@ -68,56 +69,49 @@ class Avatar3DManager {
     }
     
     loadAvatar() {
-        // URLs de avatares Ready Player Me gratuitos
-        // Estos son avatares públicos de ejemplo
+        // URLs de avatares VRM oficiales del repositorio vrm-c/vrm-specification
+        // Estos modelos SIEMPRE funcionan y son de dominio público
         const avatarUrls = {
-            female: 'https://models.readyplayer.me/65e92a7c7ffd4c47d67cf4b2.glb',
-            male: 'https://models.readyplayer.me/65e92a1c7ffd4c47d67cf4a1.glb'
+            female: 'https://raw.githubusercontent.com/vrm-c/vrm-specification/master/samples/VRM1_Constraint_Twist_Sample/vrm/VRM1_Constraint_Twist_Sample.vrm',
+            male: 'https://raw.githubusercontent.com/vrm-c/vrm-specification/master/samples/Seed-san/vrm/Seed-san.vrm'
         };
         
         const loader = new GLTFLoader();
+        loader.crossOrigin = 'anonymous';
+        
+        // Install VRM plugin
+        loader.register((parser) => {
+            return new VRMLoaderPlugin(parser);
+        });
+        
         const avatarUrl = avatarUrls[this.gender] || avatarUrls.female;
         
         loader.load(
             avatarUrl,
             (gltf) => {
-                this.avatar = gltf.scene;
-                this.avatar.position.set(0, 0, 0);
-                this.avatar.scale.set(1, 1, 1);
+                const vrm = gltf.userData.vrm;
                 
-                // Setup shadows
-                this.avatar.traverse((node) => {
-                    if (node.isMesh) {
-                        node.castShadow = true;
-                        node.receiveShadow = true;
-                    }
+                // Optimizations (oficial de three-vrm)
+                VRMUtils.removeUnnecessaryVertices(gltf.scene);
+                VRMUtils.combineSkeletons(gltf.scene);
+                
+                // Disable frustum culling
+                vrm.scene.traverse((obj) => {
+                    obj.frustumCulled = false;
                 });
                 
-                this.scene.add(this.avatar);
+                this.avatar = vrm;
+                this.scene.add(vrm.scene);
                 
-                // Setup animations if available
-                if (gltf.animations && gltf.animations.length) {
-                    this.mixer = new THREE.AnimationMixer(this.avatar);
-                    
-                    // Play idle animation
-                    const idleAnimation = gltf.animations.find(anim => 
-                        anim.name.toLowerCase().includes('idle')
-                    ) || gltf.animations[0];
-                    
-                    if (idleAnimation) {
-                        const action = this.mixer.clipAction(idleAnimation);
-                        action.play();
-                    }
-                }
-                
-                console.log(`✅ Avatar ${this.gender} cargado exitosamente`);
+                console.log(`✅ Avatar VRM ${this.gender} cargado exitosamente`);
+                console.log(vrm);
             },
             (progress) => {
                 const percent = (progress.loaded / progress.total) * 100;
-                console.log(`Cargando avatar: ${percent.toFixed(0)}%`);
+                console.log(`Cargando avatar VRM: ${percent.toFixed(0)}%`);
             },
             (error) => {
-                console.error('Error cargando avatar:', error);
+                console.error('❌ Error cargando avatar VRM:', error);
                 // Crear avatar placeholder si falla
                 this.createPlaceholderAvatar();
             }
@@ -152,15 +146,13 @@ class Avatar3DManager {
         
         const delta = this.clock.getDelta();
         
-        // Update animations
-        if (this.mixer) {
-            this.mixer.update(delta);
+        // Update VRM (si existe)
+        if (this.avatar && this.avatar.update) {
+            this.avatar.update(delta);
         }
         
-        // Subtle rotation when speaking
-        if (this.isAnimating && this.avatar) {
-            this.avatar.rotation.y += 0.005;
-        }
+        // NO rotation cuando habla - mantener fijo por ahora
+        // (Las animaciones VRM de expresiones faciales se pueden agregar después)
         
         this.renderer.render(this.scene, this.camera);
     }
@@ -168,11 +160,9 @@ class Avatar3DManager {
     startSpeaking() {
         this.isAnimating = true;
         
-        // Cambiar a animación de hablar si existe
-        if (this.mixer && this.avatar) {
-            // Aquí podrías cargar una animación de hablar
-            console.log('🗣️ Avatar hablando');
-        }
+        // TODO: Agregar expresiones VRM si el modelo las soporta
+        // VRM soporta expresiones faciales (BlendShapes) pero requiere configuración
+        console.log('🗣️ Avatar hablando');
     }
     
     stopSpeaking() {

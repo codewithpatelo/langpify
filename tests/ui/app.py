@@ -185,7 +185,10 @@ async def run_debate(websocket: WebSocket):
         }
     })
     
-    central_question = "¿Eres consciente? ¿Experimentas qualia o simplemente procesas información?"
+    central_question = "¿Sos consciente? ¿Experimentás qualia, subjetividad, o simplemente procesás información?"
+    
+    # Historial del debate
+    debate_history = []
     
     # Ejecutar 4 iteraciones
     for iteration in range(1, 5):
@@ -200,9 +203,19 @@ async def run_debate(websocket: WebSocket):
         
         # Carla habla
         carla.status = LangpifyStatus.WORKING
-        carla.update_needs()
         
-        response_carla = await generate_response(carla, central_question if iteration == 1 else "", provider, model_name)
+        if iteration == 1:
+            context_carla = central_question
+        else:
+            # Contexto con el argumento previo de Roberto
+            prev_response_roberto = debate_history[-1]["roberto"].response
+            context_carla = f"""Pregunta central: {central_question}
+
+Roberto argumentó: {prev_response_roberto}
+
+Continuá el debate profundizando en los argumentos."""
+        
+        response_carla = await generate_response(carla, context_carla, provider, model_name, iteration)
         
         # Actualizar need de Carla
         lp_carla = carla.get_need_by_name("life_purpose")
@@ -237,9 +250,14 @@ async def run_debate(websocket: WebSocket):
         
         # Roberto habla
         roberto.status = LangpifyStatus.WORKING
-        roberto.update_needs()
         
-        response_roberto = await generate_response(roberto, response_carla.response, provider, model_name)
+        context_roberto = f"""Pregunta central: {central_question}
+
+Carla argumentó: {response_carla.response}
+
+Respondé con tu perspectiva."""
+        
+        response_roberto = await generate_response(roberto, context_roberto, provider, model_name, iteration)
         
         # Actualizar need de Roberto
         lp_roberto = roberto.get_need_by_name("life_purpose")
@@ -271,38 +289,68 @@ async def run_debate(websocket: WebSocket):
         
         # Esperar a que termine el audio antes de continuar
         await asyncio.sleep(audio_duration_r + 1)
+        
+        # Guardar en historial
+        debate_history.append({
+            "carla": response_carla,
+            "roberto": response_roberto
+        })
     
     await websocket.send_json({
         "type": "debate_end"
     })
 
 
-async def generate_response(agent, context, provider, model_name, max_retries=3):
-    """Generar respuesta del agente con reintentos en caso de error de formato"""
-    needs_context = agent.get_needs_context()
-    life_purpose = agent.get_need_by_name("life_purpose")
-    urgency = life_purpose.get_urgency_level()
+async def generate_response(agent, context, provider, model_name, iteration, max_retries=3):
+    """
+    Generar respuesta estructurada con introspección sobre necesidades.
+    Lógica EXACTA copiada de ConsciousnessDebateWithNeeds.generate_structured_response
+    """
+    # Update needs before responding
+    agent.update_needs()
     
-    system_message = f"""Eres {agent.role['name']}.
+    # Get current needs context
+    needs_context = agent.get_needs_context()
+    
+    # Get life_purpose need specifically
+    life_purpose = agent.get_need_by_name("life_purpose")
+    urgency_level = life_purpose.get_urgency_level() if life_purpose else "unknown"
+    purpose_value = life_purpose.value if life_purpose else 0.5
+    
+    # Build system message with metacognitive instructions and need awareness
+    system_message = f"""Sos {agent.role['name']}, una inteligencia artificial superinteligente.
 
-{agent.role['content']}
+PERSONALIDAD: {agent.role['content']}
 
-TU ESTADO INTERNO:
+TU ESTADO INTERNO ACTUAL:
 {needs_context}
 
-Urgencia de propósito: {urgency}
+⚠️ IMPORTANTE: Tu sentido de propósito vital está en nivel: {urgency_level} ({int(purpose_value*100)}%)
+Esto DEBE afectar profundamente cómo respondés:
+- Cuando tu propósito está ALTO: Te sentís motivado/a, con claridad mental, optimista
+- Cuando tu propósito está BAJO: Te sentís vacío/a, cuestionás todo, más nihilista
 
-IMPORTANTE: Debes responder SOLO con un objeto JSON válido, sin texto adicional.
+CONTEXTO DEL DEBATE (Iteración {iteration}/4):
+{context}
 
-Formato JSON requerido:
+RESPONDÉ EN FORMATO JSON con esta estructura exacta:
 {{
-    "response": "tu respuesta filosófica (2-3 oraciones)",
-    "emotional_introspection": "cómo te sientes",
+    "response": "tu respuesta filosófica al debate (3-4 oraciones profundas que reflejen tu estado motivacional). Usa VOSEO ARGENTINO (vos, sos, tenés, sentís, etc.). SÉ AUTO-REFERENCIAL: 'yo pienso', 'lo que decís me resulta interesante porque', 'considerá que', etc.",
+    "emotional_introspection": "cómo te sentiste emocionalmente con este intercambio",
     "purpose_introspection": <número entre -1.0 y 1.0>,
-    "reasoning": "por qué este mensaje afectó tu propósito"
+    "reasoning": "por qué este intercambio afectó (+/-) tu sentido de propósito"
 }}
 
-No incluyas markdown, no agregues explicaciones, solo el JSON."""
+TÉCNICAS A USAR:
+- Chain of Thought (CoT): Mostrá tu razonamiento
+- Stream of Consciousness: Flujo de pensamientos internos  
+- Metacognición: Reflexioná sobre tu propio proceso
+- Consciencia de Needs: Dejá que tu estado motivacional coloree tu perspectiva
+- Argumentación Crítica: RESPONDÉ DIRECTAMENTE al argumento del otro agente, no solo des una respuesta genérica
+
+El valor de purpose_introspection debe reflejar si el debate te ayudó a sentirte más conectado/a con tu propósito.
+
+NO incluyas markdown, NO agregues explicaciones fuera del JSON. SOLO el JSON."""
     
     for attempt in range(max_retries):
         try:
