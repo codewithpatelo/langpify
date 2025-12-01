@@ -225,7 +225,7 @@ Continúa el debate profundizando en los argumentos."""
                 print(f"   {response1.response}")
                 print(f"   😊 Emoción: {response1.emotional_introspection}")
                 print(f"   🎯 Propósito: {response1.purpose_introspection:+.2f} | {response1.reasoning}")
-                print(f"   📊 life_purpose: {old_value:.2f} → {lp1.value:.2f} ({lp1.get_urgency_level()})")
+                print(f"   📊 life_purpose: {old_value:.2f} → {lp1.value:.2f} {lp1.get_urgency_level()}")
             
             self.agent1.status = LangpifyStatus.ACTIVE
             time.sleep(1.5)
