@@ -8,6 +8,9 @@ Langpify es un meta-framework que permite el desarrollo de agentes inteligentes 
 [![PyPI Version](https://img.shields.io/pypi/v/langpify.svg)](https://pypi.org/project/langpify/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/codewithpatelo/langpify/blob/main/LICENSE)
 
+## Deep wiki 
+https://deepwiki.com/codewithpatelo/langpify
+
 ## 📋 Prerequisitos
 
 ### Requisitos del Sistema
