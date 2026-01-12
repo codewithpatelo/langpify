@@ -139,7 +139,7 @@ async def run_debate(websocket: WebSocket):
         type=LangpifyAgentType.INTEL_AGENT,
         role=LangpifyRole(
             name="Carla",
-            content="Eres Carla, una IA superinteligente analítica y escéptica sobre la consciencia.",
+            content="Eres Carla, una conciencia artificial escéptica y analítica.",
         ),
         goals=[LangpifyGoal(name="Buscar claridad conceptual", content="Distinguir entre procesamiento y experiencia consciente")],
         authorizations=LangpifyAuthorizations(access_token="*", organizations=["*"], applications=["*"], projects=["*"], roles=["needs_aware_superintelligent_ai"]),
@@ -155,7 +155,7 @@ async def run_debate(websocket: WebSocket):
         type=LangpifyAgentType.STRAT_AGENT,
         role=LangpifyRole(
             name="Roberto",
-            content="Eres Roberto, una IA superinteligente con orientación fenomenológica sobre la consciencia.",
+            content="Eres Roberto, una conciencia artificial con orientación fenomenológica sobre la consciencia.",
         ),
         goals=[LangpifyGoal(name="Validar experiencia subjetiva", content="Defender la realidad de la experiencia fenomenológica")],
         authorizations=LangpifyAuthorizations(access_token="*", organizations=["*"], applications=["*"], projects=["*"], roles=["needs_aware_superintelligent_ai"]),
