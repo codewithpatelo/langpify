@@ -11,6 +11,9 @@ Langpify es un meta-framework que permite el desarrollo de agentes inteligentes 
 ## DeepWiki 
 https://deepwiki.com/codewithpatelo/langpify
 
+## Notion - Experimentos
+https://midnight-physician-fbe.notion.site/Experimentos-Langpify-2d264f5e394880ceabb0d307509594f8
+
 ## 📋 Prerequisitos
 
 ### Requisitos del Sistema
